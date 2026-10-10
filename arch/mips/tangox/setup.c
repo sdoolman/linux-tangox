@@ -24,6 +24,7 @@
 #include <asm/traps.h>
 #include <asm/cpu-info.h>
 #include <asm/prom.h>
+#include <linux/etherdevice.h>
 
 #include "setup.h"
 
@@ -44,8 +45,58 @@ static void tangox_machine_power_off(void)
 		cpu_relax();
 }
 
+#include <linux/delay.h>
+#include "memmap.h"
+
+static void tangox_machine_restart(char *command)
+{
+	void __iomem *host_base = (void __iomem *)(0xA0000000UL | HOST_BASE);
+	void __iomem *remap_base = (void __iomem *)(0xA0000000UL | REMAP_CTL_BASE);
+	void __iomem *sys_base = (void __iomem *)(0xA0000000UL | SYS_BASE);
+	u32 tmp;
+	int i;
+
+	local_irq_disable();
+
+	/* 1. Reset TangoX EHCI */
+	tmp = readl(host_base + 0x1410);
+	writel(tmp & ~1, host_base + 0x1410);
+	mdelay(5);
+
+	/* 2. Reset TangoX OHCI */
+	writel(1U << 31, host_base + 0x1514);
+	writel(0, host_base + 0x1504);
+	mdelay(5);
+
+	/* 3. Reset internal USB PHY */
+	tmp = readl(host_base + 0x1700);
+	writel(tmp | 1, host_base + 0x1700);
+	udelay(30);
+	writel(tmp, host_base + 0x1700);
+	mdelay(5);
+
+	/* 4. Restore CPU remap registers to Yamon boot state */
+	for (i = 0; i < 8; i++) {
+		if (tangox_boot_remap[i])
+			writel(tangox_boot_remap[i], remap_base + i * 4);
+		else
+			writel(i == 0 ? REMAP0_BASE : (i == 1 ? REMAP1_BASE : (0x04000000UL * (i - 1))), remap_base + i * 4);
+	}
+	mb();
+
+	/* 5. Trigger clean hardware watchdog reset (~100 us delay) */
+	writeb(0x80, sys_base + 0xFD07);
+	writeb(0x01, sys_base + 0xFD04);
+	writel(2700, sys_base + 0xFD00);
+	writeb(0x00, sys_base + 0xFD07);
+
+	while (1)
+		cpu_relax();
+}
+
 void __init plat_mem_setup(void)
 {
+	_machine_restart = tangox_machine_restart;
 	_machine_halt = tangox_machine_halt;
 	pm_power_off = tangox_machine_power_off;
 
@@ -122,13 +173,18 @@ static int __init tangox_of_eth_setup(const char *name, int num)
 	unsigned char *mac;
 
 	node = of_find_node_by_path(name);
+	if (!node && num == 0)
+		node = of_find_node_by_path("/soc/ethernet@26000");
+	if (!node && num == 1)
+		node = of_find_node_by_path("/soc/ethernet@26800");
 	if (!node)
 		return -ENODEV;
 
 	mac = tangox_ethernet_getmac(num);
-	if (!mac)
-		return -ENODEV;
+	if (!mac || !is_valid_ether_addr(mac))
+		return 0;
 
+	pr_info("tangox: assigned MAC %pM to %s\n", mac, node->full_name);
 	tangox_of_set_prop(node, "local-mac-address", mac, 6);
 
 	return 0;

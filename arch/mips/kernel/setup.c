@@ -1,3 +1,9 @@
+
+#define PCH_STAGE_WDT(val) do { \
+    (*(volatile u32 *)0xA0061938UL) = (val); \
+    (*(volatile u32 *)0xA001FD04UL) = 0x00000001UL; \
+    (*(volatile u32 *)0xA001FD00UL) = 0x91557000UL; \
+} while (0)
 /*
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -345,8 +351,10 @@ static void __init bootmem_init(void)
 	 * as our memory range starting point. Once bootmem is inited we
 	 * will reserve the area used for the initrd.
 	 */
+	PCH_STAGE_WDT(0xBA00BA00UL);
 	init_initrd();
 	reserved_end = (unsigned long) PFN_UP(__pa_symbol(&_end));
+	PCH_STAGE_WDT(0xBA01BA01UL);
 
 	/*
 	 * max_low_pfn is not a number of pages. The number of pages
@@ -429,11 +437,13 @@ static void __init bootmem_init(void)
 		mapstart = max(mapstart, (unsigned long)PFN_UP(__pa(initrd_end)));
 #endif
 
+	PCH_STAGE_WDT(0xBA02BA02UL);
 	/*
 	 * Initialize the boot-time allocator with low memory only.
 	 */
 	bootmap_size = init_bootmem_node(NODE_DATA(0), mapstart,
 					 min_low_pfn, max_low_pfn);
+	PCH_STAGE_WDT(0xBA03BA03UL);
 
 
 	for (i = 0; i < boot_mem_map.nr_map; i++) {
@@ -462,6 +472,7 @@ static void __init bootmem_init(void)
 		memblock_add_node(PFN_PHYS(start), PFN_PHYS(end - start), 0);
 	}
 
+	PCH_STAGE_WDT(0xBA04BA04UL);
 	/*
 	 * Register fully available low RAM pages with the bootmem allocator.
 	 */
@@ -509,10 +520,12 @@ static void __init bootmem_init(void)
 		memory_present(0, start, end);
 	}
 
+	PCH_STAGE_WDT(0xBA05BA05UL);
 	/*
 	 * Reserve the bootmap memory.
 	 */
 	reserve_bootmem(PFN_PHYS(mapstart), bootmap_size, BOOTMEM_DEFAULT);
+	PCH_STAGE_WDT(0xBA06BA06UL);
 
 #ifdef CONFIG_RELOCATABLE
 	/*
@@ -537,10 +550,12 @@ static void __init bootmem_init(void)
 	}
 #endif
 
+	PCH_STAGE_WDT(0xBA07BA07UL);
 	/*
 	 * Reserve initrd memory if needed.
 	 */
 	finalize_initrd();
+	PCH_STAGE_WDT(0xBA08BA08UL);
 }
 
 #endif	/* CONFIG_SGI_IP27 */
@@ -702,6 +717,7 @@ static void __init arch_mem_init(char **cmdline_p)
 
 	/* call board setup routine */
 	plat_mem_setup();
+	PCH_STAGE_WDT(0xC101C101UL);
 
 	/*
 	 * Make sure all kernel memory is in the maps.  The "UP" and
@@ -757,7 +773,9 @@ static void __init arch_mem_init(char **cmdline_p)
 		print_memory_map();
 	}
 
+	PCH_STAGE_WDT(0xC103C103UL);
 	bootmem_init();
+	PCH_STAGE_WDT(0xC104C104UL);
 #ifdef CONFIG_PROC_VMCORE
 	if (setup_elfcorehdr && setup_elfcorehdr_size) {
 		printk(KERN_INFO "kdump reserved memory at %lx-%lx\n",
@@ -775,6 +793,7 @@ static void __init arch_mem_init(char **cmdline_p)
 				BOOTMEM_DEFAULT);
 #endif
 	device_tree_init();
+	PCH_STAGE_WDT(0xC105C105UL);
 	sparse_init();
 	plat_swiotlb_setup();
 
@@ -866,11 +885,13 @@ void __init setup_arch(char **cmdline_p)
 	cpu_probe();
 	mips_cm_probe();
 	prom_init();
+	PCH_STAGE_WDT(0xC001C001UL);
 
 	setup_early_fdc_console();
 #ifdef CONFIG_EARLY_PRINTK
 	setup_early_printk();
 #endif
+	PCH_STAGE_WDT(0xC002C002UL);
 	cpu_report();
 	check_bugs_early();
 
@@ -883,13 +904,17 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 	arch_mem_init(cmdline_p);
+	PCH_STAGE_WDT(0xC201C201UL);
 
 	resource_init();
+	PCH_STAGE_WDT(0xC202C202UL);
 	plat_smp_setup();
 	prefill_possible_map();
 
 	cpu_cache_init();
+	PCH_STAGE_WDT(0xC203C203UL);
 	paging_init();
+	PCH_STAGE_WDT(0xCCCCCCCCUL); /* Milestone: setup_arch complete */
 }
 
 unsigned long kernelsp[NR_CPUS];

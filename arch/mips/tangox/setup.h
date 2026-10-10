@@ -15,11 +15,15 @@
 void prom_console_init(void);
 #else
 static inline void prom_console_init(void) { }
+extern u32 tangox_boot_remap[8];
+
 #endif
 
 int xenv_config(void);
 unsigned int tangox_sata_cfg(void);
 int tangox_ethernet_enabled(unsigned int i);
 unsigned char *tangox_ethernet_getmac(unsigned int i);
+
+extern u32 tangox_boot_remap[8];
 
 #endif
