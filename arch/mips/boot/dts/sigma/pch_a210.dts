@@ -65,3 +65,11 @@
 &uart1 {
 	status = "disabled";
 };
+
+&sata0 {
+	status = "okay";
+};
+
+&sata1 {
+	status = "okay";
+};
