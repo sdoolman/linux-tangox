@@ -1,0 +1,67 @@
+/dts-v1/;
+
+#include "smp8640.dtsi"
+#include "smp8640-cpu.dtsi"
+
+/ {
+	compatible = "syabas,pch-a210", "sigma,smp8640-soc";
+	model = "Popcorn Hour A-210";
+
+	aliases {
+		serial0 = &uart0;
+		ethernet0 = &eth0;
+		eth0 = &eth0;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200 earlycon init=/init ip=192.168.1.4::192.168.1.1:255.255.255.0:pch:eth0:off";
+	};
+
+	memory@4000000 {
+		device_type = "memory";
+		reg = <0x04000000 0x0c000000>;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		standby {
+			label = "Standby";
+			gpios = <&sys_gpio 8 0>;
+			default-state = "on";
+		};
+
+		power {
+			label = "Power";
+			gpios = <&sys_gpio 9 0>;
+		};
+	};
+};
+
+&eth0 {
+	mac-address = [ 00 06 dc 81 4f a3 ];
+	local-mac-address = [ 00 06 dc 81 4f a3 ];
+	phy-mode = "rgmii-id";
+	phy-connection-type = "rgmii-id";
+	phy-handle = <&eth0_phy>;
+
+	eth0_phy: ethernet-phy@1 {
+		compatible = "ethernet-phy-id0007.0420",
+			     "ethernet-phy-id0007.0421",
+			     "ethernet-phy-ieee802.3-c22";
+		reg = <1>;
+	};
+};
+
+&eth1 {
+	status = "disabled";
+};
+
+&uart0 {
+	status = "okay";
+	clock-frequency = <1843200>;
+};
+
+&uart1 {
+	status = "disabled";
+};

@@ -1,0 +1,39 @@
+name: MIPS Linux 4.9 Kernel CI
+
+on:
+  push:
+    branches: [ master, pch-a210-4.9 ]
+  pull_request:
+    branches: [ master, pch-a210-4.9 ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Linux 4.9 for Sigma SMP8643 (Popcorn Hour A-210)
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout kernel repository
+        uses: actions/checkout@v4
+
+      - name: Install MIPS Cross-Compiler & Toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-mipsel-linux-gnu binutils-mipsel-linux-gnu bc bison flex libelf-dev libssl-dev
+
+      - name: Configure Linux Kernel (pch_a210_defconfig)
+        run: |
+          make ARCH=mips CROSS_COMPILE=mipsel-linux-gnu- pch_a210_defconfig
+
+      - name: Compile Kernel Image & Flat Binary
+        run: |
+          make -j2 ARCH=mips CROSS_COMPILE=mipsel-linux-gnu- vmlinux
+          mipsel-linux-gnu-objcopy -O binary vmlinux vmlinux.bin
+          ls -lh vmlinux vmlinux.bin
+          sha256sum vmlinux.bin
+
+      - name: Upload Kernel Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pch-a210-vmlinux
+          path: vmlinux.bin

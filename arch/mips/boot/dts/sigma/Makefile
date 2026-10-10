@@ -1,3 +1,4 @@
+dtb-$(CONFIG_DTB_PCH_A210)	+= pch_a210.dtb
 dtb-$(CONFIG_DTB_PCH_C200)	+= pch_c200.dtb
 dtb-$(CONFIG_DTB_TANGOX_IPU)	+= smp8640_ipu.dtb
 
