@@ -179,10 +179,15 @@ STATIC int INIT unlzo(u8 *input, long in_len,
 		in_buf = in_buf_save;
 	}
 
+	int block_cnt = 0;
 	if (posp)
 		*posp = skip;
 
 	for (;;) {
+		block_cnt++;
+		/* Pet hardware watchdog on each block (60s @ 27MHz, bit 31=0) */
+		*(volatile u32 *)0xA001FD04UL = 0x00000001UL;
+		*(volatile u32 *)0xA001FD00UL = 0x608F3D00UL;
 		/* read uncompressed block size */
 		if (fill && in_len < 4) {
 			skip = fill(in_buf + in_len, 4 - in_len);
@@ -249,16 +254,27 @@ STATIC int INIT unlzo(u8 *input, long in_len,
 			r = lzo1x_decompress_safe((u8 *) in_buf, src_len,
 						out_buf, &tmp);
 
-			if (r != LZO_E_OK || dst_len != tmp) {
+			/* In LZO streams, the terminal block decompresses fewer than dst_len bytes */
+			if (r != LZO_E_OK || tmp > dst_len) {
+				volatile u32 *tele = (volatile u32 *)0xA0061900UL;
+				tele[0] = 0x706d6f43UL; /* 0x1900: "Comp" */
+				tele[2] = ((u32)block_cnt << 16) | (((u32)r) & 0xFFFF); /* 0x1908 */
+				tele[4] = dst_len; /* 0x1910 */
+				tele[6] = (u32)tmp; /* 0x1918 */
+				tele[8] = src_len; /* 0x1920 */
+				tele[10] = (u32)(uintptr_t)in_buf; /* 0x1928 */
+				tele[12] = (u32)(uintptr_t)out_buf; /* 0x1930 */
+				tele[14] = 0x706d6f43UL; /* 0x1938: milestone register */
+				__asm__ __volatile__("sync; ehb");
 				error("Compressed data violation");
 				goto exit_2;
 			}
 		}
 
-		if (flush && flush(out_buf, dst_len) != dst_len)
+		if (flush && flush(out_buf, tmp) != tmp)
 			goto exit_2;
 		if (output)
-			out_buf += dst_len;
+			out_buf += tmp;
 		if (posp)
 			*posp += src_len + 12;
 

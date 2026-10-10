@@ -38,6 +38,13 @@
 #include <linux/moduleparam.h>
 #include <linux/kallsyms.h>
 #include <linux/writeback.h>
+
+#define PCH_STAGE_WDT(val) do { \
+    (*(volatile u32 *)0xA0061938UL) = (val); \
+    (*(volatile u32 *)0xA001FD04UL) = 0x00000001UL; \
+    (*(volatile u32 *)0xA001FD00UL) = 0x91557000UL; \
+} while (0)
+
 #include <linux/cpu.h>
 #include <linux/cpuset.h>
 #include <linux/cgroup.h>
@@ -383,6 +390,9 @@ static __initdata DECLARE_COMPLETION(kthreadd_done);
 static noinline void __ref rest_init(void)
 {
 	int pid;
+	(*(volatile u32 *)0xA0061938UL) = 0xD3D3D3D3UL; (*(volatile u32 *)0xA0061938UL) = 0xD3D3D3D3UL; 
+	*(volatile unsigned int *)0xA001FD04UL = 0x00000001UL;
+	*(volatile unsigned int *)0xA001FD00UL = 0x91557000UL; /* 90s budget for user-space init */
 
 	rcu_scheduler_starting();
 	/*
@@ -479,7 +489,12 @@ static void __init mm_init(void)
 asmlinkage __visible void __init start_kernel(void)
 {
 	char *command_line;
+	(*(volatile u32 *)0xA0061938UL) = 0xD0D0D0D0UL; (*(volatile u32 *)0xA0061938UL) = 0xD0D0D0D0UL; /* Milestone: start_kernel entry */
 	char *after_dashes;
+
+	(*(volatile u32 *)0xA00619A0UL) = 0xCCCCCCCCUL; /* start_kernel reached! */
+	*(volatile unsigned int *)0xA001FD04UL = 0x00000001UL;
+	*(volatile unsigned int *)0xA001FD00UL = 0x91557000UL;
 
 	set_task_stack_end_magic(&init_task);
 	smp_setup_processor_id();
@@ -503,6 +518,7 @@ asmlinkage __visible void __init start_kernel(void)
 	page_address_init();
 	pr_notice("%s", linux_banner);
 	setup_arch(&command_line);
+	PCH_STAGE_WDT(0xD001D001UL);
 	mm_init_cpumask(&init_mm);
 	setup_command_line(command_line);
 	setup_nr_cpu_ids();
@@ -512,6 +528,7 @@ asmlinkage __visible void __init start_kernel(void)
 
 	build_all_zonelists(NULL, NULL);
 	page_alloc_init();
+	PCH_STAGE_WDT(0xD002D002UL);
 
 	pr_notice("Kernel command line: %s\n", boot_command_line);
 	parse_early_param();
@@ -534,7 +551,9 @@ asmlinkage __visible void __init start_kernel(void)
 	vfs_caches_init_early();
 	sort_main_extable();
 	trap_init();
+	PCH_STAGE_WDT(0xD003D003UL);
 	mm_init();
+	PCH_STAGE_WDT(0xD004D004UL);
 
 	/*
 	 * Set up the scheduler prior starting any interrupts (such as the
@@ -542,6 +561,7 @@ asmlinkage __visible void __init start_kernel(void)
 	 * time - but meanwhile we still have a functioning scheduler.
 	 */
 	sched_init();
+	PCH_STAGE_WDT(0xD005D005UL);
 	/*
 	 * Disable preemption - early bootup scheduling is extremely
 	 * fragile until we cpu_idle() for the first time.
@@ -561,6 +581,7 @@ asmlinkage __visible void __init start_kernel(void)
 	/* init some links before init_ISA_irqs() */
 	early_irq_init();
 	init_IRQ();
+	PCH_STAGE_WDT(0xD006D006UL);
 	tick_init();
 	rcu_init_nohz();
 	init_timers();
@@ -568,6 +589,7 @@ asmlinkage __visible void __init start_kernel(void)
 	softirq_init();
 	timekeeping_init();
 	time_init();
+	PCH_STAGE_WDT(0xD007D007UL);
 	sched_clock_postinit();
 	printk_nmi_init();
 	perf_event_init();
@@ -575,7 +597,9 @@ asmlinkage __visible void __init start_kernel(void)
 	call_function_init();
 	WARN(!irqs_disabled(), "Interrupts were enabled early\n");
 	early_boot_irqs_disabled = false;
+	PCH_STAGE_WDT(0xD008D008UL);
 	local_irq_enable();
+	PCH_STAGE_WDT(0xD009D009UL);
 
 	kmem_cache_init_late();
 
@@ -585,6 +609,7 @@ asmlinkage __visible void __init start_kernel(void)
 	 * this. But we do want output early, in case something goes wrong.
 	 */
 	console_init();
+	PCH_STAGE_WDT(0xD010D010UL);
 	if (panic_later)
 		panic("Too many boot %s vars at `%s'", panic_later,
 		      panic_param);
@@ -615,9 +640,13 @@ asmlinkage __visible void __init start_kernel(void)
 	if (late_time_init)
 		late_time_init();
 	sched_clock_init();
+	(*(volatile u32 *)0xA0061938UL) = 0xD1D1D1D1UL; (*(volatile u32 *)0xA0061938UL) = 0xD1D1D1D1UL; /* Milestone: before calibrate_delay */
 	calibrate_delay();
+	PCH_STAGE_WDT(0xD2D2D2D2UL);
 	pidmap_init();
+	PCH_STAGE_WDT(0xD201D201UL);
 	anon_vma_init();
+	PCH_STAGE_WDT(0xD202D202UL);
 	acpi_early_init();
 #ifdef CONFIG_X86
 	if (efi_enabled(EFI_RUNTIME_SERVICES))
@@ -629,24 +658,33 @@ asmlinkage __visible void __init start_kernel(void)
 #endif
 	thread_stack_cache_init();
 	cred_init();
+	PCH_STAGE_WDT(0xD203D203UL);
 	fork_init();
+	PCH_STAGE_WDT(0xD204D204UL);
 	proc_caches_init();
+	PCH_STAGE_WDT(0xD205D205UL);
 	buffer_init();
+	PCH_STAGE_WDT(0xD206D206UL);
 	key_init();
 	security_init();
 	dbg_late_init();
 	vfs_caches_init();
+	PCH_STAGE_WDT(0xD207D207UL);
 	signals_init();
+	PCH_STAGE_WDT(0xD208D208UL);
 	/* rootfs populating might need page-writeback */
 	page_writeback_init();
 	proc_root_init();
+	PCH_STAGE_WDT(0xD209D209UL);
 	nsfs_init();
 	cpuset_init();
 	cgroup_init();
+	PCH_STAGE_WDT(0xD20AD20AUL);
 	taskstats_init_early();
 	delayacct_init();
 
 	check_bugs();
+	PCH_STAGE_WDT(0xD20BD20BUL);
 
 	acpi_subsystem_init();
 	sfi_init_late();
@@ -657,6 +695,7 @@ asmlinkage __visible void __init start_kernel(void)
 	}
 
 	ftrace_init();
+	(*(volatile u32 *)0xA0061938UL) = 0xD3D3D3D3UL; (*(volatile u32 *)0xA0061938UL) = 0xD3D3D3D3UL; /* Milestone: before rest_init */
 
 	/* Do the rest non-__init'ed, we're now alive */
 	rest_init();
@@ -840,8 +879,11 @@ static void __init do_initcall_level(int level)
 		   level, level,
 		   NULL, &repair_env_string);
 
-	for (fn = initcall_levels[level]; fn < initcall_levels[level+1]; fn++)
+	PCH_STAGE_WDT(0xD700D700UL | (level & 0xff));
+	for (fn = initcall_levels[level]; fn < initcall_levels[level+1]; fn++) {
+		PCH_STAGE_WDT(0xD8000000UL | (((u32)(level & 0xf)) << 24) | (((u32)(fn - initcall_levels[level])) & 0xffff));
 		do_one_initcall(*fn);
+	}
 }
 
 static void __init do_initcalls(void)
@@ -940,6 +982,7 @@ static int __ref kernel_init(void *unused)
 {
 	int ret;
 
+	(*(volatile u32 *)0xA0061938UL) = 0xD4D4D4D4UL;
 	kernel_init_freeable();
 	/* need to finish all async __init code before freeing the memory */
 	async_synchronize_full();
@@ -952,10 +995,13 @@ static int __ref kernel_init(void *unused)
 
 	rcu_end_inkernel_boot();
 
+	(*(volatile u32 *)0xA0061938UL) = 0xD5D5D5D5UL;
 	if (ramdisk_execute_command) {
+		(*(volatile u32 *)0xA0061938UL) = 0xD6D6D6D6UL;
 		ret = run_init_process(ramdisk_execute_command);
 		if (!ret)
 			return 0;
+		(*(volatile u32 *)0xA0061938UL) = 0xEEEE0000UL | (ret & 0xffff);
 		pr_err("Failed to execute %s (error %d)\n",
 		       ramdisk_execute_command, ret);
 	}
@@ -967,6 +1013,7 @@ static int __ref kernel_init(void *unused)
 	 * trying to recover a really broken machine.
 	 */
 	if (execute_command) {
+		(*(volatile u32 *)0xA0061938UL) = 0xD4D4D4D4UL; (*(volatile u32 *)0xA0061938UL) = 0xD4D4D4D4UL; /* Milestone: executing /init */
 		ret = run_init_process(execute_command);
 		if (!ret)
 			return 0;
@@ -985,10 +1032,12 @@ static int __ref kernel_init(void *unused)
 
 static noinline void __init kernel_init_freeable(void)
 {
+	PCH_STAGE_WDT(0xD401D401UL);
 	/*
 	 * Wait until kthreadd is all set-up.
 	 */
 	wait_for_completion(&kthreadd_done);
+	PCH_STAGE_WDT(0xD402D402UL);
 
 	/* Now the scheduler is fully set up and can do blocking allocations */
 	gfp_allowed_mask = __GFP_BITS_MASK;
@@ -1014,9 +1063,12 @@ static noinline void __init kernel_init_freeable(void)
 
 	page_alloc_init_late();
 
+	PCH_STAGE_WDT(0xD403D403UL);
 	do_basic_setup();
+	PCH_STAGE_WDT(0xD404D404UL);
 
 	/* Open the /dev/console on the rootfs, this should never fail */
+	PCH_STAGE_WDT(0xD405D405UL);
 	if (sys_open((const char __user *) "/dev/console", O_RDWR, 0) < 0)
 		pr_err("Warning: unable to open an initial console.\n");
 
@@ -1030,6 +1082,7 @@ static noinline void __init kernel_init_freeable(void)
 	if (!ramdisk_execute_command)
 		ramdisk_execute_command = "/init";
 
+	PCH_STAGE_WDT(0xD406D406UL);
 	if (sys_access((const char __user *) ramdisk_execute_command, 0) != 0) {
 		ramdisk_execute_command = NULL;
 		prepare_namespace();

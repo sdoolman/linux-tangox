@@ -28,6 +28,8 @@
 
 #define GZIP_IOBUF_SIZE (16*1024)
 
+unsigned long zlib_decompressed_bytes = 0;
+
 static long INIT nofill(void *buffer, unsigned long len)
 {
 	return -1;
@@ -155,6 +157,7 @@ STATIC int INIT __gunzip(unsigned char *buf, long len,
 
 		/* after Z_FINISH, only Z_STREAM_END is "we unpacked it all" */
 		if (rc == Z_STREAM_END) {
+			zlib_decompressed_bytes = (unsigned long)strm->next_out - (unsigned long)out_buf;
 			rc = 0;
 			break;
 		} else if (rc != Z_OK) {

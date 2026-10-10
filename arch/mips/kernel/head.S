@@ -83,6 +83,15 @@ FEXPORT(__kernel_entry)
 
 NESTED(kernel_entry, 16, sp)			# kernel entry point
 
+	/* Milestone 0x81818181: kernel_entry entered! */
+	lui	t0, 0xA006
+	ori	t0, t0, 0x1930
+	li	t1, 0x81818181
+	sw	t1, 0(t0)
+	ori	t0, t0, 0x1938
+	sw	t1, 0(t0)
+	sync
+
 	kernel_entry_setup			# cpu specific setup
 
 	setup_c0_status_pri
@@ -119,6 +128,16 @@ dtb_found:
 	PTR_ADDIU	t0, LONGSIZE
 	LONG_S		zero, (t0)
 	bne		t0, t1, 1b
+
+	/* Milestone 0x82828282: kernel_entry BSS cleared */
+	lui	t0, 0xA006
+	ori	t0, t0, 0x1934
+	li	t1, 0x82828282
+	sw	t1, 0(t0)
+	lui	t0, 0xA006
+	ori	t0, t0, 0x1938
+	sw	t1, 0(t0)
+	sync
 
 	LONG_S		a0, fw_arg0		# firmware arguments
 	LONG_S		a1, fw_arg1
@@ -157,6 +176,13 @@ dtb_found:
 	 */
 	jr.hb		v0
 #else
+	/* Milestone 0x83838383: jumping to start_kernel */
+	lui	t0, 0xA006
+	ori	t0, t0, 0x1938
+	li	t1, 0x83838383
+	sw	t1, 0(t0)
+	sync
+
 	j		start_kernel
 #endif
 	END(kernel_entry)

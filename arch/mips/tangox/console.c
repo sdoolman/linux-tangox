@@ -11,6 +11,17 @@ static const unsigned long uart_addr[] __initconst = {
 	UART2_BASE,
 };
 
+#define DRAM_LOG_BASE    0xABF00100UL
+#define DRAM_LOG_MAGIC   0x5043484CUL  /* 'PCHL' */
+
+struct pch_early_log {
+	u32 magic;
+	u32 head;
+	u32 count;
+	u32 reserved;
+	char buf[65536 - 16];
+};
+
 static void __iomem *uart_base;
 
 static inline unsigned serial_in(int reg)
@@ -45,13 +56,27 @@ void __init prom_console_init(void)
 
 void prom_putchar(char c)
 {
+	volatile struct pch_early_log *pl = (volatile struct pch_early_log *)DRAM_LOG_BASE;
 	unsigned int timeout;
 	int status, bits;
+
+
+	if (pl->magic != DRAM_LOG_MAGIC) {
+		pl->head = 0;
+		pl->count = 0;
+		pl->magic = DRAM_LOG_MAGIC;
+	}
+
+	if (pl->head < sizeof(pl->buf) - 1) {
+		pl->buf[pl->head++] = c;
+		pl->buf[pl->head] = '\0';
+		pl->count++;
+	}
 
 	if (!uart_base)
 		return;
 
-	timeout = 0;
+	timeout = 1000;
 	bits = 0x60;
 
 	do {

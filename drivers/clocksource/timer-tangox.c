@@ -40,6 +40,7 @@ static irqreturn_t tangox_timer_irq(int irq, void *dev_id)
 {
 	struct tangox_timer *tm = dev_id;
 
+
 	writel(1, tm->base + TIMER_INT_ACK);
 
 	if (!tm->periodic)
