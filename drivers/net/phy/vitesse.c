@@ -132,11 +132,10 @@ static int vsc8601_add_skew(struct phy_device *phydev)
 
 static int vsc8601_config_init(struct phy_device *phydev)
 {
-	int ret = 0;
+	int ret;
 
-	if (phydev->interface == PHY_INTERFACE_MODE_RGMII_ID)
-		ret = vsc8601_add_skew(phydev);
-
+	/* Standard Page 0, Reg 23: Enable RGMII Skew (2.0ns delay on RX & TX clocks) */
+	ret = vsc8601_add_skew(phydev);
 	if (ret < 0)
 		return ret;
 
@@ -356,6 +355,7 @@ static struct mdio_device_id __maybe_unused vitesse_tbl[] = {
 	{ PHY_ID_VSC8244, 0x000fffc0 },
 	{ PHY_ID_VSC8514, 0x000ffff0 },
 	{ PHY_ID_VSC8574, 0x000ffff0 },
+	{ PHY_ID_VSC8601, 0x000ffff0 },
 	{ PHY_ID_VSC8662, 0x000ffff0 },
 	{ PHY_ID_VSC8221, 0x000ffff0 },
 	{ PHY_ID_VSC8211, 0x000ffff0 },

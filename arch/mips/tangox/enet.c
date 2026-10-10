@@ -8,20 +8,23 @@
 
 static int tangox_phy_init(struct phy_device *phydev)
 {
-	int err;
+	int val;
 
-	err = phy_write(phydev, 31, 1);
-	if (!err)
-		err = phy_write(phydev, 28, 0x5000);
-	phy_write(phydev, 31, 0);
+	pr_info("tangox: applying Popcorn Hour VSC8601 RGMII skew tuning...\n");
 
-	return err;
+	/* Standard Page 0, Reg 23 (MII_RESV1): Enable RGMII Skew (bit 8 = 0x0100, 2.0ns delay) */
+	val = phy_read(phydev, 23);
+	if (val >= 0)
+		phy_write(phydev, 23, val | 0x0100);
+
+	pr_info("tangox: VSC8601 RGMII skew applied successfully!\n");
+	return 0;
 }
 
 static void __init tangox_enet_set_bw(void __iomem *reg)
 {
 	u32 val = readl(reg);
-	val = (val & ~0xff) | 0x3f;
+	val = (val & ~0xff) | 0x18;
 	writel(val, reg);
 }
 
@@ -31,17 +34,17 @@ static int __init tangox_enet_setup(void)
 	int i;
 
 	for (i = 0; i < 2; i++)
-		if (tangox_ethernet_enabled(i))
-			tangox_enet_set_bw(ctl + i * 4);
+		tangox_enet_set_bw(ctl + i * 4);
 
 	iounmap(ctl);
 
-	if (of_machine_is_compatible("syabas,pch-c200")) {
-		pr_info("PCH C-200 Ethernet PHY fixup enabled\n");
+	if (of_machine_is_compatible("syabas,pch-c200") ||
+	    of_machine_is_compatible("syabas,pch-a210")) {
+		pr_info("PCH Ethernet PHY fixup enabled\n");
 		phy_register_fixup_for_uid(0x00070420, 0xfffffff0,
 					   tangox_phy_init);
 	}
 
 	return 0;
 }
-device_initcall(tangox_enet_setup);
+arch_initcall(tangox_enet_setup);
