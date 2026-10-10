@@ -20,7 +20,7 @@ static inline dma_addr_t tangox_phys_to_dma(phys_addr_t physaddr)
 	unsigned long idx = physaddr >> 26;
 	unsigned long offset = physaddr & ((1 << 26) - 1);
 
-	return tangox_remap[idx] << 26 | offset;
+	return (dma_addr_t)tangox_remap[idx] << 26 | offset;
 }
 
 static inline phys_addr_t tangox_dma_to_phys(dma_addr_t dma_addr)
@@ -28,7 +28,7 @@ static inline phys_addr_t tangox_dma_to_phys(dma_addr_t dma_addr)
 	unsigned long idx = dma_addr >> 26;
 	unsigned long offset = dma_addr & ((1 << 26) - 1);
 
-	return tangox_remap_inv[idx] << 26 | offset;
+	return (phys_addr_t)tangox_remap_inv[idx] << 26 | offset;
 }
 #else
 static inline dma_addr_t tangox_phys_to_dma(phys_addr_t physaddr)

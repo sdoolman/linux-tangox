@@ -3,5 +3,7 @@
 #
 
 platform-$(CONFIG_ARCH_TANGO)	+= tangox/
-load-$(CONFIG_ARCH_TANGO)	:= 0x90000000
+load-$(CONFIG_ARCH_TANGO)	:= 0x84000000
 cflags-$(CONFIG_ARCH_TANGO)	+= -I$(srctree)/arch/mips/include/asm/mach-tango3
+zload-	:= 0x84800000
+zload-y				:= 0x84800000

@@ -13,6 +13,10 @@ endchoice
 
 choice
 	prompt	"Devicetree"
+config DTB_PCH_A210
+	bool "Popcorn Hour A-210"
+	depends on TANGOX_CPU
+
 
 config DTB_PCH_C200
 	bool "Popcorn Hour C-200"
