@@ -608,10 +608,11 @@ static void nb8800_mac_config(struct net_device *dev)
 	if (!priv->duplex)
 		mac_mode |= HALF_DUPLEX;
 
-	if (gigabit) {
-		if (priv->phy_mode == PHY_INTERFACE_MODE_RGMII)
-			mac_mode |= RGMII_MODE;
+	if (priv->phy_mode >= PHY_INTERFACE_MODE_RGMII &&
+	    priv->phy_mode <= PHY_INTERFACE_MODE_RGMII_TXID)
+		mac_mode |= RGMII_MODE;
 
+	if (gigabit) {
 		mac_mode |= GMAC_MODE;
 		phy_clk = 125000000;
 
@@ -623,6 +624,8 @@ static void nb8800_mac_config(struct net_device *dev)
 	}
 
 	ict = DIV_ROUND_UP(phy_clk, clk_get_rate(priv->clk));
+	if (gigabit && ict < 3)
+		ict = 3;
 
 	nb8800_writeb(priv, NB8800_IC_THRESHOLD, ict);
 	nb8800_writeb(priv, NB8800_SLOT_TIME, slot_time);
@@ -1202,11 +1205,11 @@ static int nb8800_hw_init(struct net_device *dev)
 	/* RX/TX FIFO threshold for partial empty (64-bit entries) */
 	nb8800_writeb(priv, NB8800_PE_THRESHOLD, 0);
 
-	/* RX/TX FIFO threshold for partial full (64-bit entries) */
-	nb8800_writeb(priv, NB8800_PF_THRESHOLD, 255);
+	/* RX/TX FIFO threshold for partial full (64-bit entries, stock = 127) */
+	nb8800_writeb(priv, NB8800_PF_THRESHOLD, 127);
 
-	/* Buffer size for transmit (64-bit entries) */
-	nb8800_writeb(priv, NB8800_TX_BUFSIZE, 64);
+	/* Buffer size for transmit (64-bit entries, stock = 255) */
+	nb8800_writeb(priv, NB8800_TX_BUFSIZE, 255);
 
 	/* Configure tx DMA */
 
@@ -1269,6 +1272,7 @@ static int nb8800_tangox_init(struct net_device *dev)
 {
 	struct nb8800_priv *priv = netdev_priv(dev);
 	u32 pad_mode = PAD_MODE_MII;
+	u8 val;
 
 	switch (priv->phy_mode) {
 	case PHY_INTERFACE_MODE_MII:
@@ -1277,6 +1281,7 @@ static int nb8800_tangox_init(struct net_device *dev)
 		break;
 
 	case PHY_INTERFACE_MODE_RGMII:
+	case PHY_INTERFACE_MODE_RGMII_ID:
 		pad_mode = PAD_MODE_RGMII;
 		break;
 
@@ -1290,7 +1295,9 @@ static int nb8800_tangox_init(struct net_device *dev)
 		return -EINVAL;
 	}
 
-	nb8800_writeb(priv, NB8800_TANGOX_PAD_MODE, pad_mode);
+	/* Preserve upper nibble 0xf0 (pinmux/Yamon delay strap settings) like vendor tangox_enet.c */
+	val = nb8800_readb(priv, NB8800_TANGOX_PAD_MODE) & 0xf0;
+	nb8800_writeb(priv, NB8800_TANGOX_PAD_MODE, val | (u8)pad_mode);
 
 	return 0;
 }
@@ -1300,14 +1307,16 @@ static int nb8800_tangox_reset(struct net_device *dev)
 	struct nb8800_priv *priv = netdev_priv(dev);
 	int clk_div;
 
-	nb8800_writeb(priv, NB8800_TANGOX_RESET, 0);
+	nb8800_writel(priv, NB8800_TANGOX_RESET, 0);
 	usleep_range(1000, 10000);
-	nb8800_writeb(priv, NB8800_TANGOX_RESET, 1);
+	nb8800_writel(priv, NB8800_TANGOX_RESET, 1);
+	nb8800_readl(priv, NB8800_TANGOX_RESET);
 
 	wmb();		/* ensure reset is cleared before proceeding */
 
 	clk_div = DIV_ROUND_UP(clk_get_rate(priv->clk), 2 * MAX_MDC_CLOCK);
-	nb8800_writew(priv, NB8800_TANGOX_MDIO_CLKDIV, clk_div);
+	nb8800_writel(priv, NB8800_TANGOX_MDIO_CLKDIV, clk_div);
+	nb8800_readl(priv, NB8800_TANGOX_MDIO_CLKDIV);
 
 	return 0;
 }
