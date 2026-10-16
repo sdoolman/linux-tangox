@@ -583,11 +583,17 @@ asmlinkage __visible void __init start_kernel(void)
 	init_IRQ();
 	PCH_STAGE_WDT(0xD006D006UL);
 	tick_init();
+	PCH_STAGE_WDT(0xD061D061UL);
 	rcu_init_nohz();
+	PCH_STAGE_WDT(0xD062D062UL);
 	init_timers();
+	PCH_STAGE_WDT(0xD063D063UL);
 	hrtimers_init();
+	PCH_STAGE_WDT(0xD064D064UL);
 	softirq_init();
+	PCH_STAGE_WDT(0xD065D065UL);
 	timekeeping_init();
+	PCH_STAGE_WDT(0xD066D066UL);
 	time_init();
 	PCH_STAGE_WDT(0xD007D007UL);
 	sched_clock_postinit();
