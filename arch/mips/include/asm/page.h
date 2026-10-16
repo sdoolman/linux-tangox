@@ -175,12 +175,15 @@ static inline unsigned long ___pa(unsigned long x)
 
 	if (!IS_ENABLED(CONFIG_EVA)) {
 		/*
-		 * We're using the standard MIPS32 legacy memory map, ie.
-		 * the address x is going to be in kseg0 or kseg1. We can
-		 * handle either case by masking out the desired bits using
-		 * CPHYSADDR.
+		 * Tangox non-zero PHYS_OFFSET fix:
+		 * When PHYS_OFFSET is non-zero (0x04000000 on Tango3), CPHYSADDR(x) yields
+		 * the raw KSEG offset instead of physical DRAM bus address.
 		 */
+#if defined(CONFIG_TANGOX) || defined(CONFIG_TANGOX_CPU) || defined(CONFIG_MACH_TANGO3)
+		return x - PAGE_OFFSET + PHYS_OFFSET;
+#else
 		return CPHYSADDR(x);
+#endif
 	}
 
 	/*

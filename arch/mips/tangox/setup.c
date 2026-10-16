@@ -129,7 +129,14 @@ void __init plat_time_init(void)
 
 	rate = clk_get_rate(clk);
 
-	__asm__ ("rdhwr %0, $3" : "=r" (ccres));
+	/*
+	 * Tangox MIPS 74Kf RDHWR $3 safeguard:
+	 * If hardware CCRes is 0 or rdhwr is unsupported, default to 2 to prevent div-by-zero.
+	 */
+	ccres = 2;
+	__asm__ __volatile__("rdhwr %0, $3" : "=r" (ccres) : : "memory");
+	if (ccres <= 0)
+		ccres = 2;
 	mips_hpt_frequency = rate / ccres;
 
 	pr_info("CPU clock %d Hz\n", rate);

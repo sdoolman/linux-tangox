@@ -14,7 +14,7 @@
 	};
 
 	chosen {
-		bootargs = "console=ttyS0,115200 earlycon init=/init ip=192.168.1.4::192.168.1.1:255.255.255.0:pch:eth0:off";
+		bootargs = "console=ttyS0,115200 earlycon lpj=1650688 init=/init ip=192.168.1.4::192.168.1.1:255.255.255.0:pch:eth0:off";
 	};
 
 	memory@4000000 {
