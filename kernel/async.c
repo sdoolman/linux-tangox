@@ -113,6 +113,9 @@ static void async_run_entry_fn(struct work_struct *work)
 	unsigned long flags;
 	ktime_t uninitialized_var(calltime), delta, rettime;
 
+	(*(volatile u32 *)0xA006193CUL) = (u32)entry->func;
+	(*(volatile u32 *)0xA0061940UL) = 0xAA55AA55UL;
+
 	/* 1) run (and print duration) */
 	if (initcall_debug && system_state == SYSTEM_BOOTING) {
 		pr_debug("calling  %lli_%pF @ %i\n",
@@ -121,6 +124,7 @@ static void async_run_entry_fn(struct work_struct *work)
 		calltime = ktime_get();
 	}
 	entry->func(entry->data, entry->cookie);
+	(*(volatile u32 *)0xA0061940UL) = 0xBB66BB66UL;
 	if (initcall_debug && system_state == SYSTEM_BOOTING) {
 		rettime = ktime_get();
 		delta = ktime_sub(rettime, calltime);
@@ -191,6 +195,8 @@ static async_cookie_t __async_schedule(async_func_t func, void *data, struct asy
 	current->flags |= PF_USED_ASYNC;
 
 	/* schedule for execution */
+	(*(volatile u32 *)0xA0061944UL) = (u32)func;
+	(*(volatile u32 *)0xA0061948UL) = 0x55AA55AAUL;
 	queue_work(system_unbound_wq, &entry->work);
 
 	return newcookie;
@@ -289,7 +295,9 @@ void async_synchronize_cookie_domain(async_cookie_t cookie, struct async_domain 
 		starttime = ktime_get();
 	}
 
-	wait_event(async_done, lowest_in_progress(domain) >= cookie);
+	(*(volatile u32 *)0xA006194CUL) = (u32)lowest_in_progress(domain);
+	(*(volatile u32 *)0xA0061950UL) = (u32)cookie;
+	wait_event_timeout(async_done, lowest_in_progress(domain) >= cookie, 5 * HZ);
 
 	if (initcall_debug && system_state == SYSTEM_BOOTING) {
 		endtime = ktime_get();

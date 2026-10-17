@@ -990,16 +990,24 @@ static int __ref kernel_init(void *unused)
 
 	(*(volatile u32 *)0xA0061938UL) = 0xD4D4D4D4UL;
 	kernel_init_freeable();
-	/* need to finish all async __init code before freeing the memory */
+	PCH_STAGE_WDT(0xD4B1D4B1UL); /* returned from freeable */
 	async_synchronize_full();
+	PCH_STAGE_WDT(0xD4B2D4B2UL); /* async sync done */
 	free_initmem();
+	PCH_STAGE_WDT(0xD4B3D4B3UL); /* free initmem done */
 	mark_readonly();
+	PCH_STAGE_WDT(0xD4B4D4B4UL); /* mark readonly done */
 	system_state = SYSTEM_RUNNING;
 	numa_default_policy();
 
 	flush_delayed_fput();
+	PCH_STAGE_WDT(0xD4B5D4B5UL);
 
 	rcu_end_inkernel_boot();
+
+	/* DISARM HARDWARE WATCHDOG: Linux 4.9.0 has completed boot! */
+	(*(volatile u32 *)0xA001FD04UL) = 0x80000000UL;
+	(*(volatile u32 *)0xA001FD00UL) = 0x00000000UL;
 
 	(*(volatile u32 *)0xA0061938UL) = 0xD5D5D5D5UL;
 	if (ramdisk_execute_command) {
@@ -1090,19 +1098,14 @@ static noinline void __init kernel_init_freeable(void)
 
 	PCH_STAGE_WDT(0xD406D406UL);
 	if (sys_access((const char __user *) ramdisk_execute_command, 0) != 0) {
+		PCH_STAGE_WDT(0xD4BAD4BAUL); /* sys_access failed! */
 		ramdisk_execute_command = NULL;
 		prepare_namespace();
 	}
-
-	/*
-	 * Ok, we have completed the initial bootup, and
-	 * we're essentially up and running. Get rid of the
-	 * initmem segments and start the user-mode stuff..
-	 *
-	 * rootfs is available now, try loading the public keys
-	 * and default modules
-	 */
+	PCH_STAGE_WDT(0xD4A1D4A1UL); /* sys_access succeeded or namespace prepared */
 
 	integrity_load_keys();
+	PCH_STAGE_WDT(0xD4A2D4A2UL);
 	load_default_modules();
+	PCH_STAGE_WDT(0xD4A3D4A3UL);
 }
